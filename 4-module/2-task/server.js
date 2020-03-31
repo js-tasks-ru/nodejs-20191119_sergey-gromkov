@@ -46,10 +46,6 @@ server.on('request', (req, res) => {
         if (error.code === 'EEXIST') {
           res.statusCode = 409;
           res.end('File already exists');
-        } else {
-          console.log(error.code);
-          // res.statusCode = 500;
-          // res.end('Internal server error');
         }
       });
 
