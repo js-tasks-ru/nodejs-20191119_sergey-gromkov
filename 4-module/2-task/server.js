@@ -8,58 +8,48 @@ const server = new http.Server();
 
 server.on('request', (req, res) => {
   const pathname = url.parse(req.url).pathname.slice(1);
-  const filepath = path.join(__dirname, 'files', pathname);
-  const nestedPath = (pathname.includes('/') || pathname.includes('..'));
-  const LIMIT_IN_ONE_MEGABYTE = 1024 * 1024;
 
-  if (nestedPath) {
-    res.statusCode = 400;
-    res.end('Nested paths are not allowed.');
-    return;
-  }
+  const filepath = path.join(__dirname, 'files', pathname);
 
   switch (req.method) {
     case 'POST':
-      const writeStream = fs.createWriteStream(filepath, { flags: 'wx' });
-      const limitStream = new LimitSizeStream({ limit: LIMIT_IN_ONE_MEGABYTE });
-
-      req.on('aborted', () => {
-        writeStream.end();
-        writeStream.destroy();
-        fs.unlinkSync(filepath);
-      });
-
-      req.on('close', () => {
-        writeStream.destroy();
-      });
-
-      req.pipe(limitStream).pipe(writeStream);
-
-      limitStream.on('error', (error) => {
-        if (error.code === 'LIMIT_EXCEEDED') {
-          res.statusCode = 413;
-          res.end('File is too big');
-        } else {
-          res.statusCode = 500;
-          res.end('Undefined error');
-        }
-      });
+      const writeStream = fs.createWriteStream(filepath, {flags: 'wx'});
 
       writeStream.on('error', (error) => {
-        if (error.code === 'EEXIST') {
-          res.statusCode = 409;
-          res.end('File already exists');
-        } else {
-          res.statusCode = 500;
-          res.end('Undefined error');
+        if (error.code == 'ENOENT' || pathname.indexOf('/') > 0) {
+          res.writeHead(400);
+          res.end('Bad request');
+        }
+        if (error.code == 'EEXIST') {
+          res.writeHead(409);
+          res.end('File already exist');
         }
       });
 
-      writeStream.on('finish', () => {
-        res.statusCode = 201;
-        res.end('The file was saved successfully');
+      writeStream.on('close', () => {
+        res.writeHead(201);
+        res.end('Success');
       });
 
+      req.connection.on('close', (err) => {
+        if (err) {
+          fs.unlinkSync(filepath);
+        }
+      });
+
+      const limitedStream = new LimitSizeStream({limit: 1*1024*1024});
+
+      limitedStream.on('error', (err) => {
+        if (err.code == 'LIMIT_EXCEEDED') {
+          fs.unlinkSync(filepath);
+          res.statusCode = 413;
+          res.end('Too big file');
+        }
+      });
+
+      req.pipe(limitedStream);
+      limitedStream.pipe(writeStream);
+      req.pipe(writeStream);
       break;
 
     default:
