@@ -39,6 +39,9 @@ server.on('request', (req, res) => {
         if (error.code === 'LIMIT_EXCEEDED') {
           res.statusCode = 413;
           res.end('File is too big');
+        } else {
+          res.statusCode = 500;
+          res.end('Undefined error');
         }
       });
 
@@ -46,6 +49,9 @@ server.on('request', (req, res) => {
         if (error.code === 'EEXIST') {
           res.statusCode = 409;
           res.end('File already exists');
+        } else {
+          res.statusCode = 500;
+          res.end('Undefined error');
         }
       });
 
