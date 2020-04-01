@@ -20,15 +20,6 @@ server.on('request', (req, res) => {
 
   switch (req.method) {
     case 'POST':
-      fs.exists(filepath, (exists) => {
-        if (exists) {
-          res.statusCode = 409;
-          res.end('File already exists');
-          return;
-        }
-
-      });
-
       const writeStream = fs.createWriteStream(filepath, { flags: 'wx' });
       const limitStream = new LimitSizeStream({ limit: LIMIT_IN_ONE_MEGABYTE });
 
